@@ -3,205 +3,230 @@
 #include<iostream>
 #include<iomanip>
 #include<math.h>
+#include<vector>
+#include<iterator>
 #define MAX_SIZE 10
 
 using namespace std;
 
-typedef struct Node_tag {
+typedef struct Node_tag 
+{
 	bool allot;
 	int size;
-	long int startAddr;
+	// long int startAddr;
 	int count;
 }Node;
 
-/* allot==false means block exists in free list, allot==true means block does not exist in free list, i.e. it is ALLOTTED */
+/* allot==false means block exists in free list, allot==true means block does not exist in free list */
 
-typedef enum {SUCCESS, FAILURE}statuscode;
+typedef enum {SUCCESS, FAILURE} statuscode;
 
-typedef struct ptr_tag {
+typedef struct ptr_tag 
+{
 	statuscode sc;
-	long int address;
+	int address;
+	int size;
 }ptr;
 
 //total 1024 blocks of each size  can be allocated
+vector<ptr> alloclist;
 
-void initialise(Node freeList[]) {
-	int i, addr;
-	freeList[0].startAddr = addr = 0;
-	for (i = 0;i < MAX_SIZE;i++) {
+void initialize(Node freeList[]) 
+{
+	int i,size;
+	size = 1;
+	for(i=0;i<MAX_SIZE;i++)
+	{
 		freeList[i].allot = true;
+		freeList[i].size = size;
+		size *= 2;
 		freeList[i].count = 0;
-		freeList[i].size = (int)pow(2, i);
-		freeList[i + 1].startAddr = addr = addr + (1024*freeList[i].size);	//BAKCHODI FOR TEJOMAY TO HANDLE
-		//cout << freeList[i].startAddr << "\n";
 	}
-	freeList[MAX_SIZE].allot = false;
-	freeList[MAX_SIZE].size = (int)pow(2, MAX_SIZE);
-	return;
+	freeList[i].allot = false;
+	freeList[i].size = size;
+	freeList[i].count = 0;
 }
 
-int findIndex(long addr, Node freeList[]) {		//BAKCHODI
-	int i, flag = 0, retval = -1;
-	for (i = 0;(i < MAX_SIZE) && (flag == 0);i++) {
-		if (addr>=freeList[i].startAddr && addr<freeList[i+1].startAddr) {
-			flag = 1;
-			retval = i;
-		}
+int findPow(int size) 
+{		
+	int twopow = 1;
+	while(size>twopow)
+	{
+		twopow *= 2;
 	}
-	if (addr >= freeList[i].startAddr && addr < 2096128) {
-		retval = i;
-	}
-	return retval;
+	return twopow;
 }
 
-int bestFit(int size) {		//returns index of free list array from where block of size "size" will be allocated
+int bestFit(int size) 		//returns index of free list array from where block of size "size" will be allocated
+{
 	int i = 2;
 	int retval = 0;
-	while (i < size) {
+	while (i < size) 
+	{
 		i *= 2;
 	}
 	retval = (int)(log(i) / log(2));
-	//retval++;
-	//cout << retval<< endl;
 	return retval;
 }
 
 
-ptr allocate(int size, Node freeList[]) {
-	int i, t;
+ptr allocate(int size, Node freeList[]) 
+{
+	int i, t,offset;
 	ptr p;
 	i = bestFit(size);
 	t = i;
-	if (freeList[t].allot == false) {
+	if (freeList[t].allot == false) 
+	{
 		freeList[t].allot = true;
 		freeList[t].count++;
-		//cout << freeList[i].count;
 		p.sc = SUCCESS;
-		p.address = freeList[t].startAddr + (freeList[i].size * freeList[i].count);
-		//cout << p.address << "\n";
+		if(alloclist.empty())
+		{	
+			p.address = 0;
+		}	
+		else
+		{
+			offset = findPow(alloclist[alloclist.size()-1].size);
+			p.address = alloclist[alloclist.size()-1].address + offset;
+		}
+		p.size = size;
 	}
-	else {
-		do {
+	else 
+	{
+		do 
+		{
 			t++;
 		} while (freeList[t].allot == true && t<=MAX_SIZE);
-		if (t <= MAX_SIZE) {
+		if (t <= MAX_SIZE) 
+		{
 			freeList[t].allot = true;
-			do {
+			do 
+			{
 				t--;
 				freeList[t].allot = false;
-			} while (t != i);
-			freeList[t].allot = true;
+			}while (t != i);
+			//freeList[t].allot = true;
 			freeList[t].count++;
 			p.sc = SUCCESS;
-			p.address = freeList[t].startAddr + (freeList[i].size * freeList[i].count);
+			if(alloclist.empty())
+			{	
+				p.address = 0;
+			}	
+			else
+			{
+				offset = findPow(alloclist[alloclist.size()-1].size);
+				p.address = alloclist[alloclist.size()-1].address + offset;
+			}
+			p.size = size;
 		}
-		else {
+		else 
+		{
 			p.sc = FAILURE;
 		}
 	}
 	return p;
 }
 
-statuscode deallocate(ptr *p, Node freeList[]) {
-	int i;
-	statuscode sc=FAILURE;
-	i = findIndex(p->address, freeList);
-	//cout << i << "\n";
-	if (i == -1 || p->sc == FAILURE) {
+statuscode deallocate(int addr,Node freeList[]) 
+{
+	int offset,j;
+	vector<ptr>::iterator temp,i;
+	bool found = false;
+	statuscode sc = SUCCESS;
+	found=0;
+	for(temp=alloclist.begin();temp!=alloclist.end() && !found;temp++)
+	{
+		if((*temp).address == addr)
+		{
+			found = true;
+			i = temp;
+		}	
+	}
+	if(!found)
 		sc = FAILURE;
-	}
-	else {
-		p->address = -1;
-		p->sc = FAILURE;
-		freeList[i].count--;
-		sc = SUCCESS;
-		while (freeList[i].allot == false) {	//coalescing
-			freeList[i].allot = true;
+	else
+	{
+		offset = findPow((*i).size);
+		alloclist.erase(i);
+		while(i!=alloclist.end())
+		{
+			(*i).address -= offset;
 			i++;
+		}	
+		j = bestFit(offset);
+		freeList[j].count--;
+		while (freeList[j].allot == false) 		//coalescing
+		{	
+			freeList[j].allot = true;
+			j++;
 		}
-		freeList[i].allot = true;
-	}
+		freeList[j].allot = false;
+	}	
 	return sc;
 }
 
-
-void main() {
-	Node freeList[MAX_SIZE + 1];
-	initialise(freeList);
-	ptr p1, p2, p3, p4;
-	int size;
-	statuscode sc;
-	cout << "Enter size of block you want to allocate: ";
-	cin >> size;
-	p1 = allocate(size, freeList);
-	if (p1.sc == FAILURE) {
-		cout << "\nError allocating memory";
+void display()
+{
+	vector<ptr>::iterator i;
+	cout<<"Allocated memory:\n";
+	for(i=alloclist.begin();i!=alloclist.end();i++)
+	{
+		cout<<"Address: "<<(*i).address<<"\tSize: "<<(*i).size<<"\n";
 	}
-	else {
-		cout << "\nMemory allocated at address: " << p1.address;
-	}
-	cout << "\nEnter size of block you want to allocate: ";
-	cin >> size;
-	p2 = allocate(size, freeList);
-	if (p2.sc == FAILURE) {
-		cout << "\nError allocating memory";
-	}
-	else {
-		cout << "\nMemory allocated at address: " << p2.address;
-	}
-	cout << "\nEnter size of block you want to allocate: ";
-	cin >> size;
-	p3 = allocate(size, freeList);
-	if (p3.sc == FAILURE) {
-		cout << "\nError allocating memory";
-	}
-	else {
-		cout << "\nMemory allocated at address: " << p3.address;
-	}
-	cout << "\nEnter size of block you want to allocate: ";
-	cin >> size;
-	p4 = allocate(size, freeList);
-	if (p4.sc == FAILURE) {
-		cout << "\nError allocating memory";
-	}
-	else {
-		cout << "\nMemory allocated at address: " << p4.address;
-	}
-	sc=deallocate(&p1, freeList);
-	if (sc == FAILURE) {
-		cout << "\nError deallocating memory";
-	}
-	else {
-		cout << "\nMemory freed";
-	}
-	sc=deallocate(&p2, freeList);
-	if (sc == FAILURE) {
-		cout << "\nError deallocating memory";
-	}
-	else {
-		cout << "\nMemory freed";
-	}
-	sc=deallocate(&p3, freeList);
-	if (sc == FAILURE) {
-		cout << "\nError deallocating memory";
-	}
-	else {
-		cout << "\nMemory freed";
-	}
-	sc=deallocate(&p4, freeList);
-	if (sc == FAILURE) {
-		cout << "\nError deallocating memory";
-	}
-	else {
-		cout << "\nMemory freed";
-	}
-	sc=deallocate(&p1, freeList);
-	if (sc == FAILURE) {
-		cout << "\nError deallocating memory";
-	}
-	else {
-		cout << "\nMemory freed";
-	}
-	return;
+	cout<<"\n";
 }
 
+int main() 
+{
+	statuscode sc;
+	Node freeList[MAX_SIZE + 1];
+	initialize(freeList);
+	ptr p;
+	int size,addr;
+	char opt,ch;
+	ch = 'Y';
+	cout<<"-----------------------HEAP MANAGEMENT!!!!!!!--------------------------\n";
+	while(ch=='y' || ch=='Y')
+	{
+		cout<<"!1)ALLOCATE\n2)DEALLOCATE\n";
+		cout<<"Select option(1-2): ";
+		cin>>opt;
+		switch(opt)
+		{
+			case '1':
+				{
+					cout<<"Enter size to be allocated: ";
+					cin>>size;
+					p = allocate(size,freeList);
+					if(p.sc == FAILURE)
+					{
+						cout<<"Failed to allocate block!!!!!!!\n";
+					}
+					else
+					{
+						alloclist.push_back(p);
+						display();
+					}
+					break;
+				}	
+			case '2':
+				{
+					cout<<"Enter address to be deallocated: ";
+					cin>>addr;
+					sc = deallocate(addr,freeList);
+					if(sc == FAILURE)
+						cout<<"Address does not exist!!!!!";
+					else
+					{
+						display();
+					}
+					break;
+				}	
+			default: cout<<"Enter Valid Choice !!!!!!!!!!!!!!!\n";	
+		}
+		cout<<"Press 'Y' to continue, 'N' to exit: ";
+		cin>>ch;
+	}	
+	return 0;
+}
