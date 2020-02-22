@@ -169,7 +169,7 @@ statuscode deallocate(int addr,Node freeList[])
 void display()
 {
 	vector<ptr>::iterator i;
-	cout<<"Allocated memory:\n";
+	cout<<"\nAllocated memory:\n";
 	for(i=alloclist.begin();i!=alloclist.end();i++)
 	{
 		cout<<"Address: "<<(*i).address<<"\tSize: "<<(*i).size<<"\n";
@@ -189,19 +189,19 @@ int main()
 	cout<<"-----------------------HEAP MANAGEMENT!!!!!!!--------------------------\n";
 	while(ch=='y' || ch=='Y')
 	{
-		cout<<"!1)ALLOCATE\n2)DEALLOCATE\n";
+		cout<<"1)ALLOCATE\n2)DEALLOCATE\n";
 		cout<<"Select option(1-2): ";
 		cin>>opt;
 		switch(opt)
 		{
 			case '1':
 				{
-					cout<<"Enter size to be allocated: ";
+					cout<<"\nEnter size to be allocated: ";
 					cin>>size;
 					p = allocate(size,freeList);
 					if(p.sc == FAILURE)
 					{
-						cout<<"Failed to allocate block!!!!!!!\n";
+						cout<<"\nFailed to allocate block!!!!!!!\n";
 					}
 					else
 					{
@@ -212,20 +212,21 @@ int main()
 				}	
 			case '2':
 				{
-					cout<<"Enter address to be deallocated: ";
+					cout<<"\nEnter address to be deallocated: ";
 					cin>>addr;
 					sc = deallocate(addr,freeList);
 					if(sc == FAILURE)
-						cout<<"Address does not exist!!!!!";
+						cout<<"Address does not exist!!!!!\n";
 					else
 					{
-						display();
+						if(!alloclist.empty())
+							display();
 					}
 					break;
 				}	
-			default: cout<<"Enter Valid Choice !!!!!!!!!!!!!!!\n";	
+			default: cout<<"\nEnter Valid Choice !!!!!!!!!!!!!!!\n";	
 		}
-		cout<<"Press 'Y' to continue, 'N' to exit: ";
+		cout<<"\nPress 'Y' to continue, 'N' to exit: ";
 		cin>>ch;
 	}	
 	return 0;
